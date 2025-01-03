@@ -11,19 +11,12 @@ from scraper import get_web_contents, tidy_web_contents
 from ab_time import now_in_filename, iso_date
 from ab_utils import manage_thread, upload_to_container
 from export_to_word import export_search_results_to_word, append_company_info_and_disclaimer
+from ab_utils import retrieve
 
-
-# from ab_utils import retrieve
-
-# OPENROUTER_API_KEY = retrieve("OpenRouter")
-# RAINBOW_API_KEY = retrieve("Rainbow")
-# EXCELLENCE2_API_KEY = retrieve("Excellence2Key")
-# EXCELLENCE2_ENDPOINT = retrieve("Excellence2Endpoint")
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-RAINBOW_API_KEY = os.getenv("RAINBOW_API_KEY")
-EXCELLENCE_API_KEY = os.getenv("EXCELLENCE_API_KEY")
-EXCELLENCE_ENDPOINT = os.getenv("EXCELLENCE_ENDPOINT")
+OPENROUTER_API_KEY = retrieve("OpenRouter")
+RAINBOW_API_KEY = retrieve("Rainbow")
+EXCELLENCE_API_KEY = retrieve("Excellence2Key")
+EXCELLENCE_ENDPOINT = retrieve("Excellence2Endpoint")
 
 
 def execute(tool_calls):
