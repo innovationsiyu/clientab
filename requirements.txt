@@ -15,6 +15,7 @@ cryptography==44.0.0
 dateparser==1.2.0
 docx==0.2.4
 docxcompose==1.4.0
+et_xmlfile==2.0.0
 gitdb==4.0.12
 GitPython==3.1.44
 idna==3.10
@@ -30,6 +31,7 @@ msal==1.31.1
 msal-extensions==1.2.0
 narwhals==1.20.1
 numpy==2.2.1
+openpyxl==3.1.5
 packaging==24.2
 pandas==2.2.3
 pathvalidate==3.2.2
