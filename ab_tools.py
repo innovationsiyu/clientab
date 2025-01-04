@@ -7,7 +7,9 @@ import random
 import pandas as pd
 import json
 import ast
-from scraper import get_web_contents, tidy_web_contents
+from charset_normalizer import detect
+import codecs
+from scraper import get_web_contents, parse_web_contents
 from ab_time import now_in_filename, iso_date
 from ab_utils import manage_thread, upload_to_container
 from export_to_word import export_search_results_to_word, append_company_info_and_disclaimer
@@ -15,8 +17,8 @@ from ab_utils import retrieve
 
 OPENROUTER_API_KEY = retrieve("OpenRouter")
 RAINBOW_API_KEY = retrieve("Rainbow")
-EXCELLENCE_API_KEY = retrieve("Excellence2Key")
-EXCELLENCE_ENDPOINT = retrieve("Excellence2Endpoint")
+EXCELLENCE_API_KEY = retrieve("ExcellenceKey")
+EXCELLENCE_ENDPOINT = retrieve("ExcellenceEndpoint")
 
 
 def execute(tool_calls):
@@ -145,7 +147,7 @@ def internal_text_chat(ai, user_message):
 ai_dict = {
     "GPT for text chat": {
         "category": "function_calling",
-        "llms": ["gpt4o_openrouter", "gpt4o_excellence"],
+        "llms": ["gpt4o_excellence", "gpt4o_openrouter"],
         "system_message": "online_articles_to_word",
         "response_format": None,
         "tools": ["online_articles_from_url_to_word_func", "online_articles_from_raw_to_word_func"],
@@ -261,7 +263,7 @@ def web_contents_from_raw_to_csv(csv_path):
     df = pd.read_csv(csv_path, encoding="utf-8")
     valid_mask = df["web_raw_content"].notna()
     web_raw_contents = df[valid_mask]["web_raw_content"].tolist()
-    web_contents = tidy_web_contents(web_raw_contents)
+    web_contents = parse_web_contents(web_raw_contents)
     df.loc[valid_mask, "web_content"] = df.loc[valid_mask, "web_raw_content"].map(web_contents)
     df.to_csv(csv_path, index=False, encoding="utf-8")
 
@@ -343,27 +345,39 @@ def online_articles_from_url_to_word(search_results):
         return upload_to_container(csv_path)
 
 
-def convert_xlsx_to_csv(file_path):
-    if file_path.endswith(".xlsx"):
-        csv_path = file_path.replace(".xlsx", ".csv")
-        df = pd.read_excel(file_path, engine="openpyxl")
-        df.to_csv(csv_path, index=False, encoding="utf-8")
-        return csv_path
-    else:
-        return file_path
+def ensure_csv_utf8(file_path):
+    try:
+        if file_path.endswith(".csv"):
+            with open(file_path, "rb") as f:
+                encoding = codecs.lookup(detect(f.read())["encoding"]).name
+            if encoding != "utf-8":
+                df = pd.read_csv(file_path, encoding=encoding)
+                df.to_csv(file_path, index=False, encoding="utf-8")
+            return file_path
+        elif file_path.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(file_path, engine="openpyxl")
+            csv_path = os.path.splitext(file_path)[0] + ".csv"
+            df.to_csv(csv_path, index=False, encoding="utf-8")
+            return csv_path
+    except Exception as e:
+        print(f"Failed to process file: {e}")
+        return None
 
 
 def online_articles_from_raw_to_word(file_path):
-    csv_path = convert_xlsx_to_csv(file_path)
-    web_contents_from_raw_to_csv(csv_path)
-    info_from_web_raw_contents_to_csv(csv_path)
-    doc_path = export_search_results_to_word(csv_path)
-    append_company_info_and_disclaimer(doc_path)
-    return upload_to_container(doc_path)
+    csv_path = ensure_csv_utf8(file_path)
+    if csv_path:
+        web_contents_from_raw_to_csv(csv_path)
+        info_from_web_raw_contents_to_csv(csv_path)
+        doc_path = export_search_results_to_word(csv_path)
+        append_company_info_and_disclaimer(doc_path)
+        return upload_to_container(doc_path)
+    else:
+        return None
 
 
 if __name__ == "__main__":
-    csv_path = ""
+    csv_path = "/Users/siyuwang/Desktop/by Claude.xlsx"
 
    # online_articles_from_url_to_word(csv_path)
     online_articles_from_raw_to_word(csv_path)

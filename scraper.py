@@ -23,7 +23,7 @@ FIRECRAWL_API_KEYS = [
 
 SPIDER_API_KEY = retrieve("Spider")
 
-RE_NORMALIZE_NEWLINES = re.compile(r"\r\n?")
+RE_NORMALIZE_NEWLINES = re.compile(r"\r\n?|\s{2,}")
 RE_REMOVE_MARKDOWN_COMPOSITE_LINKS = re.compile(r"\s*[!@#]?\[(?:[^\[\]]*\[[^\]]*\][^\[\]]*|[^\[\]]*)\]\([^)]*\)")
 RE_REMOVE_MARKDOWN_BASIC_LINKS = re.compile(r"\s*\[[^\[\]]*\]\([^)]*\)")
 RE_REMOVE_HTML_TAGS = re.compile(r"<[^>]+>")
@@ -111,12 +111,12 @@ def get_images_and_insert_paths(web_content):
     return web_content
 
 
-def tidy_web_content(web_raw_content):
+def parse_web_content(web_raw_content):
     return get_images_and_insert_paths(get_lines(tidy(web_raw_content)))
 
 
-def tidy_web_contents(web_raw_contents):
-    requests = [(tidy_web_content, web_raw_content) for web_raw_content in (web_raw_contents if isinstance(web_raw_contents, list) else [web_raw_contents])]
+def parse_web_contents(web_raw_contents):
+    requests = [(parse_web_content, web_raw_content) for web_raw_content in (web_raw_contents if isinstance(web_raw_contents, list) else [web_raw_contents])]
     return {arguments[0]: result for result, name, arguments in manage_thread(requests)}
 
 
