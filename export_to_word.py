@@ -4,12 +4,38 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.shared import Inches
-import os
 import re
 import regex
 import string
 from docxcompose.composer import Composer
 from ab_time import now_in_filename
+
+chinese_dun_ordinal = r"[零一二三四五六七八九十百]+、"
+chinese_is_ordinal = r"[零一二三四五六七八九十百]+是"
+chinese_bracket_ordinal = r"（[零一二三四五六七八九十百]+）"
+arabic_dot_ordinal = r"[0-9]+\.(?![0-9])"
+chinese_dun_ordinal_full_stop = r"[零一二三四五六七八九十百]+、.*?。"
+chinese_is_ordinal_full_stop = r"[零一二三四五六七八九十百]+是.*?。"
+chinese_bracket_ordinal_full_stop = r"（[零一二三四五六七八九十百]+）.*?。"
+arabic_dot_ordinal_full_stop = r"[0-9]+\.(?![0-9]).*?。"
+
+ordinal = f"{chinese_dun_ordinal}|{chinese_is_ordinal}|{chinese_bracket_ordinal}|{arabic_dot_ordinal}"
+ordinal_full_stop = f"{chinese_dun_ordinal_full_stop}|{chinese_is_ordinal_full_stop}|{chinese_bracket_ordinal_full_stop}|{arabic_dot_ordinal_full_stop}"
+
+
+def bold_text_chunks(body_content):
+    return [
+        text_chunk
+        for value in body_content.values()
+        for text_chunk in (
+            [f"**{match.group('bold').strip()}**{match.group('plain').strip()}"
+             for match in re.finditer(f"(?P<bold>{ordinal_full_stop})(?P<plain>.*?)(?={ordinal_full_stop}|$)", value)]
+            if "。" in value else
+            [f"**{match.group('bold').strip()}**"
+             for match in re.finditer(f"(?P<bold>({ordinal}).*?(?=({ordinal})|$))", value)]
+        ) or [value.strip()]
+        if text_chunk.strip()
+    ]
 
 
 def process_text_paragraphs(doc, *functions):
@@ -97,7 +123,8 @@ def export_search_results_to_word(csv_path):
             heading_2 = row["heading_2"]
             source = row["source"]
             published_date = row["published_date"]
-            body_content = ast.literal_eval(row["body_content"])  # 使用 ast.literal_eval 解析字符串为字典
+            body_content = ast.literal_eval(row["body_content"])
+            body_content = bold_text_chunks(body_content)
 
             if heading_1 not in written_heading_1:
                 written_heading_1.add(heading_1)
@@ -130,12 +157,11 @@ def export_search_results_to_word(csv_path):
             run_date.font.size = Pt(12)
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            for key, value in body_content.items():
+            for value in body_content:
                 if value.startswith("temp-images"):
-                    image_path = os.path.abspath(value)
                     paragraph = doc.add_paragraph()
                     run = paragraph.add_run()
-                    run.add_picture(image_path, width=Inches(5.0))
+                    run.add_picture(value, width=Inches(5.0))
                     paragraph.alignment = 1
                 else:
                     paragraph = doc.add_paragraph()
@@ -159,7 +185,7 @@ def export_search_results_to_word(csv_path):
                     run.font.name = "宋体"
                     run.font.size = Pt(12)
         except Exception as e:
-            print(f"Error processing row {index}: {e}")
+            print(f"Error processing value: {e}")
 
     process_text_paragraphs(doc, replace_halfwidth_quotes_with_fullwidth, remove_special_symbols, change_digits_letters_punctuation_to_times_new_roman)
 
@@ -180,7 +206,7 @@ def append_company_info_and_disclaimer(doc_path):
 
 
 if __name__ == "__main__":
-    csv_path = ""
+    csv_path = '/Users/siyuwang/Desktop/20250103 154445 mxrdb7 (1).csv'
     doc_path = export_search_results_to_word(csv_path)
     append_company_info_and_disclaimer(doc_path)
     print(doc_path)

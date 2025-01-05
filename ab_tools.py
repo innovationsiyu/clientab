@@ -259,6 +259,25 @@ def web_contents_from_url_to_csv(csv_path, urls_per_chunk=6, interval_seconds=5)
     return len(web_urls)
 
 
+def ensure_csv_utf8(file_path):
+    try:
+        if file_path.endswith(".csv"):
+            with open(file_path, "rb") as f:
+                encoding = codecs.lookup(detect(f.read())["encoding"]).name
+            if encoding != "utf-8":
+                df = pd.read_csv(file_path, encoding=encoding)
+                df.to_csv(file_path, index=False, encoding="utf-8")
+            return file_path
+        elif file_path.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(file_path, engine="openpyxl")
+            csv_path = os.path.splitext(file_path)[0] + ".csv"
+            df.to_csv(csv_path, index=False, encoding="utf-8")
+            return csv_path
+    except Exception as e:
+        print(f"Failed to process file: {e}")
+        return None
+
+
 def web_contents_from_raw_to_csv(csv_path):
     df = pd.read_csv(csv_path, encoding="utf-8")
     valid_mask = df["web_raw_content"].notna()
@@ -345,25 +364,6 @@ def online_articles_from_url_to_word(search_results):
         return upload_to_container(csv_path)
 
 
-def ensure_csv_utf8(file_path):
-    try:
-        if file_path.endswith(".csv"):
-            with open(file_path, "rb") as f:
-                encoding = codecs.lookup(detect(f.read())["encoding"]).name
-            if encoding != "utf-8":
-                df = pd.read_csv(file_path, encoding=encoding)
-                df.to_csv(file_path, index=False, encoding="utf-8")
-            return file_path
-        elif file_path.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(file_path, engine="openpyxl")
-            csv_path = os.path.splitext(file_path)[0] + ".csv"
-            df.to_csv(csv_path, index=False, encoding="utf-8")
-            return csv_path
-    except Exception as e:
-        print(f"Failed to process file: {e}")
-        return None
-
-
 def online_articles_from_raw_to_word(file_path):
     csv_path = ensure_csv_utf8(file_path)
     if csv_path:
@@ -377,7 +377,7 @@ def online_articles_from_raw_to_word(file_path):
 
 
 if __name__ == "__main__":
-    csv_path = "/Users/siyuwang/Desktop/by Claude.xlsx"
+    csv_path = ""
 
-   # online_articles_from_url_to_word(csv_path)
+   # online_articles_from_url_to_word(search_results)
     online_articles_from_raw_to_word(csv_path)
