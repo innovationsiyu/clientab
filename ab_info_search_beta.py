@@ -6,7 +6,7 @@ import base64
 import threading
 from ab_time import now_in_filename, scheduled_run
 from ab_utils import clean_yesterday_files
-from ab_tools import get_prompt, get_response_format, get_tools, chat, ai_dict, openrouter, rainbow, excellence
+from ab_tools import get_prompt, get_response_format, get_tools, chat, ai_dict, openrouter, excellence
 
 st.session_state["ai"] = st.query_params.get("ai", st.session_state.get("ai", "GPT for text chat"))
 st.session_state["chat_history"] = st.session_state.get("chat_history", [{"role": "assistant", "content": "请上传Excel或CSV文件，或者提供你搜索到的文章的URLs"}])

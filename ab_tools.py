@@ -9,14 +9,13 @@ import json
 import ast
 from charset_normalizer import detect
 import codecs
-from scraper import get_web_contents, parse_web_contents
+from scraper import scrape_web_contents, parse_web_contents
 from ab_time import now_in_filename, iso_date
 from ab_utils import manage_thread, upload_to_container
 from export_to_word import export_search_results_to_word, append_company_info_and_disclaimer
 from ab_utils import retrieve
 
 OPENROUTER_API_KEY = retrieve("OpenRouter")
-RAINBOW_API_KEY = retrieve("Rainbow")
 EXCELLENCE_API_KEY = retrieve("ExcellenceKey")
 EXCELLENCE_ENDPOINT = retrieve("ExcellenceEndpoint")
 
@@ -61,11 +60,11 @@ def request_llm(url, headers, data, delay=1):
 class LLM:
     def __init__(self, url, api_key):
         self.url = url
-        self.api_keys = [api_key] if isinstance(api_key, str) else api_key
+        self.api_key = api_key
 
     def __call__(self, messages, model, temperature, top_p, response_format=None, tools=None):
         headers = {
-            "Authorization": f"Bearer {random.choice(self.api_keys)}"
+            "Authorization": f"Bearer {self.api_key}"
         }
         data = {
             "messages": messages,
@@ -99,7 +98,6 @@ class Azure:
 
 
 openrouter = LLM("https://openrouter.ai/api/v1/chat/completions", OPENROUTER_API_KEY)
-rainbow = LLM("https://gitaigc.com/v1/chat/completions", RAINBOW_API_KEY)
 excellence = Azure(EXCELLENCE_ENDPOINT, EXCELLENCE_API_KEY)
 
 
@@ -135,7 +133,7 @@ class Chat:
 
 chat = Chat()
 
-def internal_text_chat(ai, user_message):
+def text_chat(ai, user_message):
     llms = ai_dict[ai]["llms"]
     system_message = get_prompt(ai_dict[ai]["system_message"])
     response_format = get_response_format(ai_dict[ai]["response_format"])
@@ -156,26 +154,18 @@ ai_dict = {
         "intro": "OpenAI: GPT-4o"
     },
     "GPT for extracting info from online article": {
-        "category": "internal_text_chat",
+        "category": "internal",
         "llms": ["gpt4o_excellence", "gpt4o_openrouter"],
         "system_message": "extract_info_from_online_article",
         "response_format": "extract_info_from_online_article_json",
         "tools": None,
         "backend_ais": None,
         "max_length": None,
-        "intro": "internal_text_chat"
+        "intro": "internal"
     }
 }
 
 llm_dict = {
-    "gpt4o_rainbow": {
-        "name": "rainbow",
-        "arguments": {
-            "model": "gpt-4o-2024-08-06",
-            "temperature": 0.5,
-            "top_p": 0.9
-        }
-    },
     "gpt4o_openrouter": {
         "name": "openrouter",
         "arguments": {
@@ -251,7 +241,7 @@ def web_contents_from_url_to_csv(csv_path, urls_per_chunk=6, interval_seconds=5)
     web_url_chunks = [web_urls[i:i + urls_per_chunk] for i in range(0, len(web_urls), urls_per_chunk)]
     web_contents = {}
     for i, web_url_chunk in enumerate(web_url_chunks):
-        web_contents.update(get_web_contents(web_url_chunk))
+        web_contents.update(scrape_web_contents(web_url_chunk))
         if i < len(web_url_chunks) - 1:
             time.sleep(interval_seconds)
     df.loc[valid_mask, "web_content"] = df.loc[valid_mask, "web_url"].map(web_contents)
@@ -301,7 +291,7 @@ def extract_info_from_online_article(web_url, web_content, delay=1):
     user_message = f"<web_content>{(dict(list(web_content.items())[:80] + list(web_content.items())[-80:]) if len(web_content) > 160 else web_content)}</web_content>"
     for attempt in range(3):
         try:
-            results = internal_text_chat(ai, user_message)
+            results = text_chat(ai, user_message)
             results = json.loads(results)
             title = results.get("title")
             source = results.get("source")

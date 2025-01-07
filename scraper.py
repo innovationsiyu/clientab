@@ -23,38 +23,38 @@ FIRECRAWL_API_KEYS = [
 
 SPIDER_API_KEY = retrieve("Spider")
 
-RE_NORMALIZE_NEWLINES = re.compile(r"\r\n?|\s{2,}")
-RE_REMOVE_MARKDOWN_COMPOSITE_LINKS = re.compile(r"\s*[!@#]?\[(?:[^\[\]]*\[[^\]]*\][^\[\]]*|[^\[\]]*)\]\([^)]*\)")
-RE_REMOVE_MARKDOWN_BASIC_LINKS = re.compile(r"\s*\[[^\[\]]*\]\([^)]*\)")
-RE_REMOVE_HTML_TAGS = re.compile(r"<[^>]+>")
-RE_REMOVE_INVALID_LINES = regex.compile(r'^[^\p{Letter}\p{Number}\[\]\(\)]*$', flags=regex.MULTILINE)
-RE_COMPRESS_NEWLINES = re.compile(r"\n+")
+re_normalize_newlines = re.compile(r"\r\n?")
+re_remove_markdown_composite_links = re.compile(r"\s*[!@#]?\[(?:[^\[\]]*\[[^\]]*\][^\[\]]*|[^\[\]]*)\]\([^)]*\)")
+re_remove_markdown_basic_links = re.compile(r"\s*\[[^\[\]]*\]\([^)]*\)")
+re_remove_html_tags = re.compile(r"<[^>]+>")
+re_remove_invalid_lines = regex.compile(r'^[^\p{Letter}\p{Number}\[\]\(\)]*$', flags=regex.MULTILINE)
+re_compress_newlines = re.compile(r"\n+")
 
 
 def purify(text):
-    text = RE_NORMALIZE_NEWLINES.sub("\n", text)
-    text = RE_REMOVE_MARKDOWN_COMPOSITE_LINKS.sub("", text)
-    text = RE_REMOVE_MARKDOWN_BASIC_LINKS.sub("", text)
-    text = RE_REMOVE_HTML_TAGS.sub("", text)
-    text = RE_REMOVE_INVALID_LINES.sub("", text)
-    text = RE_COMPRESS_NEWLINES.sub("\n", text)
+    text = re_normalize_newlines.sub("\n", text)
+    text = re_remove_markdown_composite_links.sub("", text)
+    text = re_remove_markdown_basic_links.sub("", text)
+    text = re_remove_html_tags.sub("", text)
+    text = re_remove_invalid_lines.sub("", text)
+    text = re_compress_newlines.sub("\n", text)
     return text[:50000].strip()
 
 
 def tidy(text):
-    text = RE_NORMALIZE_NEWLINES.sub("\n", text)
-    text = RE_REMOVE_INVALID_LINES.sub("", text)
-    text = RE_COMPRESS_NEWLINES.sub("\n", text)
+    text = re_normalize_newlines.sub("\n", text)
+    text = re_remove_invalid_lines.sub("", text)
+    text = re_compress_newlines.sub("\n", text)
     return text[:50000].strip()
 
 
 def get_lines_and_image_urls(web_url, web_content):
     lines = list(dict.fromkeys(line for line in (line.strip() for line in web_content.splitlines()) if line))
     md = MarkdownIt()
-    index = 0
-    while index < len(lines):
+    i = 0
+    while i < len(lines):
         items = []
-        for child in [child for token in md.parse(lines[index]) if token.type == "inline" for child in token.children]:
+        for child in [child for token in md.parse(lines[i]) if token.type == "inline" for child in token.children]:
             if child.type == "image":
                 try:
                     items.append(urljoin(web_url, child.attrs.get("src").lstrip()))
@@ -65,10 +65,10 @@ def get_lines_and_image_urls(web_url, web_content):
                 if content:
                     items.append(content)
         if items:
-            lines[index:index+1] = items
-            index += len(items)
+            lines[i:i+1] = items
+            i += len(items)
         else:
-            index += 1
+            i += 1
     return dict(enumerate(lines, 1))
 
 
@@ -199,7 +199,7 @@ def reader(web_url, delay=1):
     return None
 
 
-def get_web_content(web_url):
+def scrape_web_content(web_url):
     for index, scraper in enumerate([firecrawl, spider]):
         try:
             web_content = scraper(web_url)
@@ -211,12 +211,12 @@ def get_web_content(web_url):
     return None
 
 
-def get_web_contents(web_urls):
-    requests = [(get_web_content, web_url) for web_url in (web_urls if isinstance(web_urls, list) else [web_urls])]
+def scrape_web_contents(web_urls):
+    requests = [(scrape_web_content, web_url) for web_url in (web_urls if isinstance(web_urls, list) else [web_urls])]
     return {arguments[0]: result for result, name, arguments in manage_thread(requests)}
 
 
-def get_web_text(web_url):
+def scrape_web_text(web_url):
     for index, request in enumerate([reader, spider]):
         try:
             web_text = request(web_url)
@@ -228,6 +228,6 @@ def get_web_text(web_url):
     return None
 
 
-def get_web_texts(web_urls):
-    requests = [(get_web_text, web_url) for web_url in (web_urls if isinstance(web_urls, list) else [web_urls])]
+def scrape_web_texts(web_urls):
+    requests = [(scrape_web_text, web_url) for web_url in (web_urls if isinstance(web_urls, list) else [web_urls])]
     return {arguments[0]: result for result, name, arguments in manage_thread(requests)}
