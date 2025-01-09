@@ -23,7 +23,7 @@ ordinal = f"{chinese_dun_ordinal}|{chinese_is_ordinal}|{chinese_bracket_ordinal}
 ordinal_full_stop = f"{chinese_dun_ordinal_full_stop}|{chinese_is_ordinal_full_stop}|{chinese_bracket_ordinal_full_stop}|{arabic_dot_ordinal_full_stop}"
 
 
-def bold_text_chunks(body_content):
+def integrate_lines(body_content):
     lines = []
     for value in body_content.values():
         text_chunks = re.split(f"({ordinal_full_stop})", value)
@@ -151,20 +151,20 @@ def center_image_description_paragraphs(doc):
 
 def export_search_results_to_word(csv_path):
     df = pd.read_csv(csv_path, encoding="utf-8")
-    valid_mask = (df["heading_1"].notna() & df["heading_2"].notna() & df["source"].notna() & df["published_date"].notna() & df["body_content"].notna())
+    valid_mask = (df["heading_2"].notna() & df["source"].notna() & df["published_date"].notna() & df["body_content"].notna())
     doc = Document("ab_doc_temps/info_search_temp_start.docx")
     written_heading_1 = set()
 
     for index, row in df[valid_mask].iterrows():
         try:
-            heading_1 = row["heading_1"]
+            heading_1 = row["heading_1"] if pd.notna(row["heading_1"]) else None
             heading_2 = row["heading_2"]
             source = row["source"]
             published_date = row["published_date"]
             body_content = ast.literal_eval(row["body_content"])
-            body_content = bold_text_chunks(body_content)
+            body_content = integrate_lines(body_content)
 
-            if heading_1 not in written_heading_1:
+            if heading_1 and heading_1 not in written_heading_1:
                 written_heading_1.add(heading_1)
                 paragraph = doc.add_paragraph()
                 run = paragraph.add_run(heading_1)

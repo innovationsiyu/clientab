@@ -256,13 +256,16 @@ def ensure_csv_utf8(file_path):
                 encoding = codecs.lookup(detect(f.read())["encoding"]).name
             if encoding != "utf-8":
                 df = pd.read_csv(file_path, encoding=encoding)
-                df.to_csv(file_path, index=False, encoding="utf-8")
-            return file_path
+            else:
+                df = pd.read_csv(file_path, encoding="utf-8")
         elif file_path.endswith((".xlsx", ".xls")):
             df = pd.read_excel(file_path, engine="openpyxl")
-            csv_path = os.path.splitext(file_path)[0] + ".csv"
-            df.to_csv(csv_path, index=False, encoding="utf-8")
-            return csv_path
+            file_path = os.path.splitext(file_path)[0] + ".csv"
+        if len(df) > 0 and len(df.columns) > 0:
+            empty_mask = df[df.columns[0]].isna()
+            df.iloc[empty_mask, 0] = df.index[empty_mask]
+        df.to_csv(file_path, index=False, encoding="utf-8")
+        return file_path
     except Exception as e:
         print(f"Failed to process file: {e}")
         return None
