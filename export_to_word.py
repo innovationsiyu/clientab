@@ -173,8 +173,6 @@ def export_search_results_to_word(csv_path):
                 run.font.size = Pt(22)
                 run.bold = True
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                paragraph.paragraph_format.space_before = Pt(6)
-                paragraph.paragraph_format.space_after = Pt(6)
 
             paragraph = doc.add_paragraph()
             run = paragraph.add_run(heading_2)
