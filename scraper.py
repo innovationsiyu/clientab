@@ -13,12 +13,9 @@ from ab_time import now_in_filename
 from ab_utils import retrieve, manage_thread
 
 FIRECRAWL_API_KEYS = [
-    retrieve("Firecrawl"),
-    retrieve("Firecrawl2"),
-    retrieve("Firecrawl3"),
-    retrieve("Firecrawl4"),
-    retrieve("Firecrawl5"),
-    retrieve("Firecrawl6")
+    retrieve("Firecrawl7"),
+    retrieve("Firecrawl8"),
+    retrieve("Firecrawl9")
 ]
 
 SPIDER_API_KEY = retrieve("Spider")
