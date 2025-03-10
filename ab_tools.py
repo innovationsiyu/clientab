@@ -249,26 +249,27 @@ def web_contents_from_url_to_csv(csv_path, urls_per_chunk=6, interval_seconds=5)
     return len(web_urls)
 
 
-def ensure_csv_utf8(file_path):
+def ensure_csv_utf8(table_path):
     try:
-        if file_path.endswith(".csv"):
-            with open(file_path, "rb") as f:
-                encoding = codecs.lookup(detect(f.read())["encoding"]).name
-            if encoding != "utf-8":
-                df = pd.read_csv(file_path, encoding=encoding)
-            else:
-                df = pd.read_csv(file_path, encoding="utf-8")
-        elif file_path.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(file_path, engine="openpyxl")
-            file_path = os.path.splitext(file_path)[0] + ".csv"
-        if len(df) > 0 and len(df.columns) > 0:
-            empty_mask = df[df.columns[0]].isna()
-            df.iloc[empty_mask, 0] = df.index[empty_mask]
-        df.to_csv(file_path, index=False, encoding="utf-8")
-        return file_path
+        if table_path.endswith(".csv"):
+            with open(table_path, "rb") as f:
+                encoding = codecs.lookup(detect(f.read(min(32768, os.path.getsize(table_path))))["encoding"]).name
+            df = pd.read_csv(table_path, encoding=encoding)
+        elif table_path.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(table_path, engine="openpyxl")
+        else:
+            return None
+        first_valid_column = next((column for column in df.columns if pd.notna(column) or df[column].notna().any()), None)
+        if first_valid_column:
+            empty_mask = df[first_valid_column].isna()
+            if empty_mask.any():
+                df.loc[empty_mask, first_valid_column] = df.index[empty_mask]
+            csv_path = os.path.splitext(table_path)[0] + ".csv"
+            df.to_csv(csv_path, index=False, encoding="utf-8")
+            return csv_path
     except Exception as e:
-        print(f"Failed to process file: {e}")
-        return None
+        print(f"Error in ensure_csv_utf8: {e}")
+    return None
 
 
 def web_contents_from_raw_to_csv(csv_path):
