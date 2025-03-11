@@ -25,23 +25,26 @@ ordinal_full_stop = f"{chinese_dun_ordinal_full_stop}|{chinese_is_ordinal_full_s
 digits_letters_punctuation = r"0-9A-Za-z" + re.escape(string.punctuation)
 
 
-def process_lines(body_content):
+def integrate_lines(body_content):
     lines = []
-    for line in body_content:
-        text_chunks = re.split(f"({ordinal_full_stop})", line)
-        processed_line = ""
+    for value in body_content.values():
+        text_chunks = re.split(f"({ordinal_full_stop})", value)
+        line = ""
         for i, text_chunk in enumerate(text_chunks):
-            if re.match(f"^{ordinal_full_stop}$", text_chunk) or re.match(f"^{ordinal}$", text_chunk):
-                if processed_line:
-                    lines.append(processed_line.strip())
-                processed_line = f"**{text_chunk.strip()}**"
+            if re.match(f"^{ordinal_full_stop}$", text_chunk):
+                if line:
+                    lines.append(line.strip())
+                line = f"**{text_chunk.strip()}**"
+            elif re.match(f"^{ordinal}$", text_chunk):
+                if line:
+                    lines.append(line.strip())
+                line = f"**{text_chunk.strip()}**"
             elif text_chunk.strip():
                 if i == 0:
-                    processed_line = text_chunk.strip()
+                    line = text_chunk.strip()
                 else:
-                    processed_line += text_chunk.strip()
-        if processed_line:
-            lines.append(processed_line.strip())
+                    line += text_chunk.strip()
+        lines.append(line.strip())
     return lines
 
 
@@ -167,21 +170,23 @@ def center_image_description_paragraphs(doc):
 
 def export_search_results_to_word(csv_path):
     df = pd.read_csv(csv_path, encoding="utf-8")
+    valid_mask = (df["heading_2"].notna() & df["source"].notna() & df["published_date"].notna() & df["body_content"].notna())
     doc = Document("ab_doc_temps/info_search_temp_start.docx")
-    search_target_written = set()
+    written_heading_1 = set()
 
-    for i, row in df.iterrows():
+    for index, row in df[valid_mask].iterrows():
         try:
-            search_target = row["heading_1"] if pd.notna(row["heading_1"]) else None
-            doc_title = row["heading_2"]
+            heading_1 = row["heading_1"] if pd.notna(row["heading_1"]) else None
+            heading_2 = row["heading_2"]
             source = row["source"]
             published_date = row["published_date"]
-            body_content = process_lines(ast.literal_eval(row["body_content"]))
+            body_content = ast.literal_eval(row["body_content"])
+            body_content = integrate_lines(body_content)
 
-            if search_target and search_target not in search_target_written:
-                search_target_written.add(search_target)
+            if heading_1 and heading_1 not in written_heading_1:
+                written_heading_1.add(heading_1)
                 paragraph = doc.add_paragraph()
-                run = paragraph.add_run(search_target)
+                run = paragraph.add_run(heading_1)
                 paragraph.style = doc.styles["Heading 1"]
                 run.font.name = "楷体"
                 run.font.size = Pt(22)
@@ -189,7 +194,7 @@ def export_search_results_to_word(csv_path):
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
             paragraph = doc.add_paragraph()
-            run = paragraph.add_run(doc_title)
+            run = paragraph.add_run(heading_2)
             paragraph.style = doc.styles["Heading 2"]
             run.font.name = "楷体"
             run.font.size = Pt(15)
@@ -207,12 +212,12 @@ def export_search_results_to_word(csv_path):
             run_date.font.size = Pt(12)
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            for line in body_content:
-                if line.startswith("temp-images"):
+            for value in body_content:
+                if value.startswith("temp-images"):
                     paragraph = doc.add_paragraph()
                     run = paragraph.add_run()
-                    run.add_picture(line, width=Inches(5.0))
-                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run.add_picture(value, width=Inches(5.0))
+                    paragraph.alignment = 1
                 else:
                     paragraph = doc.add_paragraph()
                     paragraph.style = "Normal"
@@ -220,8 +225,8 @@ def export_search_results_to_word(csv_path):
                     paragraph.paragraph_format.first_line_indent = Pt(24)
                     paragraph.paragraph_format.line_spacing = 1.25
 
-                    if "*" in line:
-                        text_chunks = re.split(r"(\*\*.*?\*\*)", line)
+                    if "*" in value:
+                        text_chunks = re.split(r"(\*\*.*?\*\*)", value)
                         for text_chunk in text_chunks:
                             if text_chunk.startswith("**") and text_chunk.endswith("**"):
                                 text_chunk = text_chunk[2:-2]
@@ -231,11 +236,11 @@ def export_search_results_to_word(csv_path):
                                 text_chunk = text_chunk.replace("*", "")
                                 run = paragraph.add_run(text_chunk)
                     else:
-                        run = paragraph.add_run(line)
+                        run = paragraph.add_run(value)
                     run.font.name = "宋体"
                     run.font.size = Pt(12)
         except Exception as e:
-            print(f"Error in export_search_results_to_word for row {i}: {e}")
+            print(f"Error processing value: {e}")
 
     process_all_text_paragraphs(doc, replace_halfwidth_quotes_with_fullwidth, remove_special_symbols, change_digits_letters_punctuation_to_times_new_roman, remove_space_between_chinese_and_digits_letters_punctuation)
     center_image_description_paragraphs(doc)
