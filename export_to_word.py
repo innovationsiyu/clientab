@@ -8,7 +8,7 @@ import re
 import regex
 import string
 from docxcompose.composer import Composer
-from ab_time import now_in_filename
+from aife_utils import now_and_choices
 
 chinese_dun_ordinal = r"[零一二三四五六七八九十百]+、.*"
 chinese_is_ordinal = r"[零一二三四五六七八九十百]+是.*"
@@ -22,27 +22,26 @@ arabic_dot_ordinal_full_stop = r"(?:\d+\.)+(?!\d).*?。"
 ordinal = f"{chinese_dun_ordinal}|{chinese_is_ordinal}|{chinese_bracket_ordinal}|{arabic_dot_ordinal}"
 ordinal_full_stop = f"{chinese_dun_ordinal_full_stop}|{chinese_is_ordinal_full_stop}|{chinese_bracket_ordinal_full_stop}|{arabic_dot_ordinal_full_stop}"
 
+digits_letters_punctuation = r"0-9A-Za-z" + re.escape(string.punctuation)
 
-def integrate_lines(body_content):
+
+def process_lines(body_content):
     lines = []
-    for value in body_content.values():
-        text_chunks = re.split(f"({ordinal_full_stop})", value)
-        line = ""
+    for line in body_content:
+        text_chunks = re.split(f"({ordinal_full_stop})", line)
+        processed_line = ""
         for i, text_chunk in enumerate(text_chunks):
-            if re.match(f"^{ordinal_full_stop}$", text_chunk):
-                if line:
-                    lines.append(line.strip())
-                line = f"**{text_chunk.strip()}**"
-            elif re.match(f"^{ordinal}$", text_chunk):
-                if line:
-                    lines.append(line.strip())
-                line = f"**{text_chunk.strip()}**"
+            if re.match(f"^{ordinal_full_stop}$", text_chunk) or re.match(f"^{ordinal}$", text_chunk):
+                if processed_line:
+                    lines.append(processed_line.strip())
+                processed_line = f"**{text_chunk.strip()}**"
             elif text_chunk.strip():
                 if i == 0:
-                    line = text_chunk.strip()
+                    processed_line = text_chunk.strip()
                 else:
-                    line += text_chunk.strip()
-        lines.append(line.strip())
+                    processed_line += text_chunk.strip()
+        if processed_line:
+            lines.append(processed_line.strip())
     return lines
 
 
@@ -69,10 +68,10 @@ def replace_halfwidth_quotes_with_fullwidth(paragraph):
         if text:
             text_chunks = pattern.split(text)
             quotes = pattern.findall(text)
-            for index, text_chunk in enumerate(text_chunks):
+            for i, text_chunk in enumerate(text_chunks):
                 if text_chunk:
                     new_runs.append((text_chunk, run))
-                if index < len(quotes):
+                if i < len(quotes):
                     if opening_quote:
                         new_runs.append(("“", run))
                     else:
@@ -101,15 +100,15 @@ def remove_special_symbols(paragraph):
 
 
 def change_digits_letters_punctuation_to_times_new_roman(paragraph):
-    pattern = re.compile(r"([0-9A-Za-z" + re.escape(string.punctuation) + r"]+)")
+    pattern = re.compile(r"([" + digits_letters_punctuation + r"]+)")
     new_runs = []
     for run in paragraph.runs:
         text = run.text
         if text:
             text_chunks = pattern.split(text)
-            for index, text_chunk in enumerate(text_chunks):
+            for i, text_chunk in enumerate(text_chunks):
                 if text_chunk:
-                    to_change = (index % 2 == 1)
+                    to_change = (i % 2 == 1)
                     new_runs.append((text_chunk, run, to_change))
     for run in paragraph.runs:
         run.text = ""
@@ -118,6 +117,27 @@ def change_digits_letters_punctuation_to_times_new_roman(paragraph):
         copy_run_style(run, new_run)
         if to_change:
             new_run.font.name = "Times New Roman"
+
+
+def remove_space_between_chinese_and_digits_letters_punctuation(paragraph):
+    # 匹配中文字符后跟空格，然后是数字、字母或半角标点
+    pattern1 = regex.compile(r"([\p{Han}])\s+([" + digits_letters_punctuation + r"])")
+    # 匹配数字、字母或半角标点后跟空格，然后是中文字符
+    pattern2 = regex.compile(r"([" + digits_letters_punctuation + r"])\s+([\p{Han}])")
+    new_runs = []
+    for run in paragraph.runs:
+        text = run.text
+        if text:
+            # 应用第一个模式：中文后跟空格再跟非中文
+            text = pattern1.sub(r"\1\2", text)
+            # 应用第二个模式：非中文后跟空格再跟中文
+            text = pattern2.sub(r"\1\2", text)
+            new_runs.append((text, run))
+    for run in paragraph.runs:
+        run.text = ""
+    for text, run in new_runs:
+        new_run = paragraph.add_run(text)
+        copy_run_style(run, new_run)
 
 
 def center_image_description_paragraphs(doc):
@@ -151,23 +171,21 @@ def center_image_description_paragraphs(doc):
 
 def export_search_results_to_word(csv_path):
     df = pd.read_csv(csv_path, encoding="utf-8")
-    valid_mask = (df["heading_2"].notna() & df["source"].notna() & df["published_date"].notna() & df["body_content"].notna())
     doc = Document("ab_doc_temps/info_search_temp_start.docx")
-    written_heading_1 = set()
+    search_target_written = set()
 
-    for index, row in df[valid_mask].iterrows():
+    for i, row in df.iterrows():
         try:
-            heading_1 = row["heading_1"] if pd.notna(row["heading_1"]) else None
-            heading_2 = row["heading_2"]
+            search_target = row["search_target"] if pd.notna(row["search_target"]) else None
+            doc_title = row["doc_title"]
             source = row["source"]
             published_date = row["published_date"]
-            body_content = ast.literal_eval(row["body_content"])
-            body_content = integrate_lines(body_content)
+            body_content = process_lines(ast.literal_eval(row["body_content"]))
 
-            if heading_1 and heading_1 not in written_heading_1:
-                written_heading_1.add(heading_1)
+            if search_target and search_target not in search_target_written:
+                search_target_written.add(search_target)
                 paragraph = doc.add_paragraph()
-                run = paragraph.add_run(heading_1)
+                run = paragraph.add_run(search_target)
                 paragraph.style = doc.styles["Heading 1"]
                 run.font.name = "楷体"
                 run.font.size = Pt(22)
@@ -175,7 +193,7 @@ def export_search_results_to_word(csv_path):
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
             paragraph = doc.add_paragraph()
-            run = paragraph.add_run(heading_2)
+            run = paragraph.add_run(doc_title)
             paragraph.style = doc.styles["Heading 2"]
             run.font.name = "楷体"
             run.font.size = Pt(15)
@@ -193,12 +211,12 @@ def export_search_results_to_word(csv_path):
             run_date.font.size = Pt(12)
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            for value in body_content:
-                if value.startswith("temp-images"):
+            for line in body_content:
+                if line.startswith("temp-images"):
                     paragraph = doc.add_paragraph()
                     run = paragraph.add_run()
-                    run.add_picture(value, width=Inches(5.0))
-                    paragraph.alignment = 1
+                    run.add_picture(line, width=Inches(5.0))
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 else:
                     paragraph = doc.add_paragraph()
                     paragraph.style = "Normal"
@@ -206,8 +224,8 @@ def export_search_results_to_word(csv_path):
                     paragraph.paragraph_format.first_line_indent = Pt(24)
                     paragraph.paragraph_format.line_spacing = 1.25
 
-                    if "*" in value:
-                        text_chunks = re.split(r"(\*\*.*?\*\*)", value)
+                    if "*" in line:
+                        text_chunks = re.split(r"(\*\*.*?\*\*)", line)
                         for text_chunk in text_chunks:
                             if text_chunk.startswith("**") and text_chunk.endswith("**"):
                                 text_chunk = text_chunk[2:-2]
@@ -217,18 +235,17 @@ def export_search_results_to_word(csv_path):
                                 text_chunk = text_chunk.replace("*", "")
                                 run = paragraph.add_run(text_chunk)
                     else:
-                        run = paragraph.add_run(value)
+                        run = paragraph.add_run(line)
                     run.font.name = "宋体"
                     run.font.size = Pt(12)
         except Exception as e:
-            print(f"Error processing value: {e}")
+            print(f"Error in export_search_results_to_word for row {i}: {e}")
 
-    process_all_text_paragraphs(doc, replace_halfwidth_quotes_with_fullwidth, remove_special_symbols, change_digits_letters_punctuation_to_times_new_roman)
+    process_all_text_paragraphs(doc, replace_halfwidth_quotes_with_fullwidth, remove_special_symbols, change_digits_letters_punctuation_to_times_new_roman, remove_space_between_chinese_and_digits_letters_punctuation)
     center_image_description_paragraphs(doc)
 
-    doc_path = f"temp-data/{now_in_filename()}.docx"
+    doc_path = f"temp-data/{now_and_choices()}.docx"
     doc.save(doc_path)
-    print(f"Document saved successfully: {doc_path}")
     return doc_path
 
 
@@ -239,11 +256,10 @@ def append_company_info_and_disclaimer(doc_path):
     doc_to_append = Document("ab_doc_temps/info_search_temp_end.docx")
     composer.append(doc_to_append)
     composer.save(doc_path)
-    print(f"Company info and disclaimer added to: {doc_path}")
 
 
 if __name__ == "__main__":
-    csv_path = r"C:\Users\Siyu\Desktop\by Claude.csv"
+    csv_path = r""
     doc_path = export_search_results_to_word(csv_path)
     append_company_info_and_disclaimer(doc_path)
     print(doc_path)
