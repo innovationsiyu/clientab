@@ -47,7 +47,7 @@ def process_lines(body_content):
 
 def process_all_text_paragraphs(doc, *functions):
     paragraphs = doc.paragraphs
-    for paragraph in paragraphs[8:]:
+    for paragraph in paragraphs[6:]:
         if any(run.text.strip() for run in paragraph.runs):
             for function in functions:
                 function(paragraph)
