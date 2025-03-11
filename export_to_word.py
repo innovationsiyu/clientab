@@ -120,17 +120,13 @@ def change_digits_letters_punctuation_to_times_new_roman(paragraph):
 
 
 def remove_space_between_chinese_and_digits_letters_punctuation(paragraph):
-    # 匹配中文字符后跟空格，然后是数字、字母或半角标点
     pattern1 = regex.compile(r"([\p{Han}])\s+([" + digits_letters_punctuation + r"])")
-    # 匹配数字、字母或半角标点后跟空格，然后是中文字符
     pattern2 = regex.compile(r"([" + digits_letters_punctuation + r"])\s+([\p{Han}])")
     new_runs = []
     for run in paragraph.runs:
         text = run.text
         if text:
-            # 应用第一个模式：中文后跟空格再跟非中文
             text = pattern1.sub(r"\1\2", text)
-            # 应用第二个模式：非中文后跟空格再跟中文
             text = pattern2.sub(r"\1\2", text)
             new_runs.append((text, run))
     for run in paragraph.runs:
@@ -176,8 +172,8 @@ def export_search_results_to_word(csv_path):
 
     for i, row in df.iterrows():
         try:
-            search_target = row["search_target"] if pd.notna(row["search_target"]) else None
-            doc_title = row["doc_title"]
+            search_target = row["heading_1"] if pd.notna(row["heading_1"]) else None
+            doc_title = row["heading_2"]
             source = row["source"]
             published_date = row["published_date"]
             body_content = process_lines(ast.literal_eval(row["body_content"]))
@@ -244,7 +240,7 @@ def export_search_results_to_word(csv_path):
     process_all_text_paragraphs(doc, replace_halfwidth_quotes_with_fullwidth, remove_special_symbols, change_digits_letters_punctuation_to_times_new_roman, remove_space_between_chinese_and_digits_letters_punctuation)
     center_image_description_paragraphs(doc)
 
-    doc_path = f"temp-data/{now_and_choices()}.docx"
+    doc_path = f"temp-data/{now_in_filename()}.docx"
     doc.save(doc_path)
     return doc_path
 
