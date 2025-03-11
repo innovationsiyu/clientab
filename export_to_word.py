@@ -8,7 +8,7 @@ import re
 import regex
 import string
 from docxcompose.composer import Composer
-from aife_utils import now_and_choices
+from ab_time import now_in_filename
 
 chinese_dun_ordinal = r"[零一二三四五六七八九十百]+、.*"
 chinese_is_ordinal = r"[零一二三四五六七八九十百]+是.*"
