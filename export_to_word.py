@@ -26,11 +26,26 @@ digits_letters_punctuation = r"0-9A-Za-z" + re.escape(string.punctuation)
 
 
 def process_lines(body_content):
-    lines = []
-    for line in body_content:
-        text_chunks = re.split(f"({ordinal_full_stop})", line)
-        lines.append("".join(f"**{text_chunk.strip()}**" if (re.match(f"^{ordinal_full_stop}$", text_chunk) or re.match(f"^{ordinal}$", text_chunk)) and text_chunk.strip() else text_chunk.strip() for text_chunk in text_chunks if text_chunk.strip()))
-    return lines
+     lines = []
+     for value in body_content.values():
+         text_chunks = re.split(f"({ordinal_full_stop})", value)
+         line = ""
+         for i, text_chunk in enumerate(text_chunks):
+             if re.match(f"^{ordinal_full_stop}$", text_chunk):
+                 if line:
+                     lines.append(line.strip())
+                 line = f"**{text_chunk.strip()}**"
+             elif re.match(f"^{ordinal}$", text_chunk):
+                 if line:
+                     lines.append(line.strip())
+                 line = f"**{text_chunk.strip()}**"
+             elif text_chunk.strip():
+                 if i == 0:
+                     line = text_chunk.strip()
+                 else:
+                     line += text_chunk.strip()
+         lines.append(line.strip())
+     return lines
 
 
 def process_all_text_paragraphs(doc, *functions):
