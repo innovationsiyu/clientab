@@ -25,26 +25,11 @@ ordinal_full_stop = f"{chinese_dun_ordinal_full_stop}|{chinese_is_ordinal_full_s
 digits_letters_punctuation = r"0-9A-Za-z" + re.escape(string.punctuation)
 
 
-def integrate_lines(body_content):
+def process_lines(body_content):
     lines = []
-    for value in body_content.values():
-        text_chunks = re.split(f"({ordinal_full_stop})", value)
-        line = ""
-        for i, text_chunk in enumerate(text_chunks):
-            if re.match(f"^{ordinal_full_stop}$", text_chunk):
-                if line:
-                    lines.append(line.strip())
-                line = f"**{text_chunk.strip()}**"
-            elif re.match(f"^{ordinal}$", text_chunk):
-                if line:
-                    lines.append(line.strip())
-                line = f"**{text_chunk.strip()}**"
-            elif text_chunk.strip():
-                if i == 0:
-                    line = text_chunk.strip()
-                else:
-                    line += text_chunk.strip()
-        lines.append(line.strip())
+    for line in body_content:
+        text_chunks = re.split(f"({ordinal_full_stop})", line)
+        lines.append("".join(f"**{text_chunk.strip()}**" if (re.match(f"^{ordinal_full_stop}$", text_chunk) or re.match(f"^{ordinal}$", text_chunk)) and text_chunk.strip() else text_chunk.strip() for text_chunk in text_chunks if text_chunk.strip()))
     return lines
 
 
@@ -181,7 +166,7 @@ def export_search_results_to_word(csv_path):
             source = row["source"]
             published_date = row["published_date"]
             body_content = ast.literal_eval(row["body_content"])
-            body_content = integrate_lines(body_content)
+            body_content = process_lines(body_content)
 
             if heading_1 and heading_1 not in written_heading_1:
                 written_heading_1.add(heading_1)
