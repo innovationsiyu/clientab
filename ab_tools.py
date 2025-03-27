@@ -169,17 +169,17 @@ llm_dict = {
     "gpt4o_openrouter": {
         "name": "openrouter",
         "arguments": {
-            "model": "openai/gpt-4o-2024-08-06",
-            "temperature": 0.5,
-            "top_p": 0.9
+            "model": "openai/gpt-4o-mini-2024-07-18",
+            "temperature": 0.15,
+            "top_p": 0.95
         }
     },
     "gpt4o_excellence": {
-        "name": "excellence",
+        "name": "excellence2",
         "arguments": {
-            "model": "excellence",
-            "temperature": 0.5,
-            "top_p": 0.9
+            "model": "yusi-mini",
+            "temperature": 0.15,
+            "top_p": 0.95
         }
     }
 }
