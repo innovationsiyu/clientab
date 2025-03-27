@@ -16,8 +16,8 @@ from export_to_word import export_search_results_to_word, append_company_info_an
 from ab_utils import retrieve
 
 OPENROUTER_API_KEY = retrieve("OpenRouter")
-EXCELLENCE_API_KEY = retrieve("ExcellenceKey")
-EXCELLENCE_ENDPOINT = retrieve("ExcellenceEndpoint")
+EXCELLENCE2_API_KEY = retrieve("Excellence2Key")
+EXCELLENCE2_ENDPOINT = retrieve("Excellence2Endpoint")
 
 
 def execute(tool_calls):
@@ -98,7 +98,7 @@ class Azure:
 
 
 openrouter = LLM("https://openrouter.ai/api/v1/chat/completions", OPENROUTER_API_KEY)
-excellence = Azure(EXCELLENCE_ENDPOINT, EXCELLENCE_API_KEY)
+excellence2 = Azure(EXCELLENCE2_ENDPOINT, EXCELLENCE2_API_KEY)
 
 
 def get_prompt(prompt, **arguments):
